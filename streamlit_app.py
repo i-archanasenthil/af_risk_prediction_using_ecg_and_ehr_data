@@ -21,6 +21,7 @@ from langchain.chains import LLMChain
 deepseek_api_key = st.secrets['DEEPSEEK_API_KEY']
 model_name       = st.secrets['MODEL_NAME']
 openai_api_base  = st.secrets['OPENAI_API_BASE']
+
  
 st.set_page_config(page_title="AFib Risk Prediction", layout="wide")
  
@@ -88,10 +89,12 @@ def make_prediction(form_values):
     return prediction, risk_score, estimated_life_years
  
 def display_results(pid, prediction, risk_score, estimated_life_years):
-    st.subheader(f"Prediction Summary for Patient: `{pid}`")
+    st.subheader(f"Prediction Summary for Patient `{pid}`")
     c1, c2, c3 = st.columns(3)
     c1.metric("AFib Risk Level:", prediction)
     c2.metric("Risk Probability:", f"{risk_score:.2f}")
+    c3.metric("Expected AFib-Free Years:", f"{estimated_life_years:.1f} yrs")
+
     c3.metric("Expected AFib-Free Years", f"{estimated_life_years:.1f} yrs")
  
 def plot_distribution_with_afib_hue(df, form_values, feature_name, title):
@@ -234,6 +237,7 @@ mandatory_fields = [
 img_c1, img_c2, img_c3 = st.columns(3)
 with img_c2:
     st.image("title.png", width=300)
+
  
 st.title("Risk Prediction for Atrial Fibrillation")
 st.badge("All fields marked with ⚠️ are required. Please fill them out before submitting.", color="gray")
@@ -255,6 +259,7 @@ def render_form():
         form_values["demographics_age_index_ecg"] = pi_c3.number_input("Age (years) ⚠️", min_value=0, max_value=120, value=0)
         st.divider()
  
+ 
         st.subheader("Cardiovascular Diseases")
         st.caption("Select all that apply.")
         cd_c1, cd_c2, cd_c3 = st.columns(3)
@@ -262,6 +267,7 @@ def render_form():
         form_values["pericarditis_icd10_prior"] = 1 if cd_c2.checkbox("Acute pericarditis") else 0
         form_values["aortic_dissection_icd10_prior"] = 1 if cd_c3.checkbox("Aortic dissection") else 0
         st.divider()
+ 
  
         st.subheader("Cardiovascular Events & Procedures")
         st.caption("Select all that apply.")
@@ -281,6 +287,7 @@ def render_form():
         form_values["lvad_cci_prior"] = 1 if c3_ced.checkbox("LVAD implantation") else 0
         st.divider()
  
+ 
         st.subheader("Cardiovascular Devices")
         st.caption("Select all that apply.")
         cdev_c1, cdev_c2, cdev_c3 = st.columns(3)
@@ -289,6 +296,7 @@ def render_form():
         form_values["icd_cci_prior"] = 1 if cdev_c3.checkbox("Implantable cardioverter‑defibrillator (ICD)") else 0
         st.divider()
  
+ 
         st.subheader("12‑Lead ECG Measurements")
         ecg_c1, ecg_c2 = st.columns(2)
         form_values["ecg_resting_hr"] = ecg_c1.number_input("Heart Rate (bpm) ⚠️", step=1, value=None)
@@ -296,6 +304,7 @@ def render_form():
         form_values["ecg_resting_qrs"] = ecg_c2.number_input("QRS Duration (ms) ⚠️", min_value=0, value=None)
         form_values["ecg_resting_qtc"] = ecg_c2.number_input("QTc Interval (ms) ⚠️", min_value=0, value=None)
         st.divider()
+ 
  
         st.subheader("ECG Morphology & Conduction")
         st.caption("Select all that apply.")
@@ -311,6 +320,8 @@ def render_form():
         form_values["ecg_resting_bifascicular_block"] = 1 if ecg_c5.checkbox("Bifascicular block") else 0
         form_values["ecg_resting_trifascicular_block"] = 1 if ecg_c5.checkbox("Trifascicular block") else 0
         form_values["ecg_resting_intraventricular_conduction_delay"] = 1 if ecg_c5.checkbox("Intraventricular conduction delay") else 0
+ 
+        submit_flag = st.form_submit_button("Submit for Risk Prediction 🩺")
  
         submit_flag = st.form_submit_button("Submit for Risk Prediction 🚀")
         save_flag = st.form_submit_button("Save Patient Record ☁️")
@@ -332,11 +343,13 @@ if st.session_state.get("form_submitted", False):
     try:
         tab1, tab2 = st.tabs(["Summary","Read More"])
  
+ 
         # — SUMMARY TAB —
         with tab1:
             vals = st.session_state["form_values"]
             lvl, score, yrs = make_prediction(vals)
             display_results(vals["patient_id"], lvl, score, yrs)
+ 
  
             # PCA + Age
             df_plot, scaler, pca, cols = create_pca_for_plotting(data, vals.keys())
@@ -347,8 +360,13 @@ if st.session_state.get("form_submitted", False):
             with c2:
                 plot_distribution_with_afib_hue(data, vals, "demographics_age_index_ecg", "Age (y)")
  
+            c1,c2 = st.columns(2)
+            with c1:
+                plot_pca_with_af_colors(df_plot, x_new, y_new)
+            with c2:
+                plot_distribution_with_afib_hue(data, vals, "demographics_age_index_ecg", "Age (y)")
+ 
             # ECG distributions
-            st.subheader("ECG Feature Distributions")
             c1,c2 = st.columns(2)
             with c1:
                 plot_distribution_with_afib_hue(data, vals, "ecg_resting_hr", "Heart Rate (bpm)")
@@ -356,6 +374,9 @@ if st.session_state.get("form_submitted", False):
             with c2:
                 plot_distribution_with_afib_hue(data, vals, "ecg_resting_pr", "PR Interval (ms)")
                 plot_distribution_with_afib_hue(data, vals, "ecg_resting_qtc", "QTc Interval (ms)")
+            st.badge("⚠️ All distributions and PCA backdrops are simulated and do not represent the actual training or evaluation data. They were created to mimic real-world patterns while ensuring data privacy.",
+                     color="gray")
+ 
             st.badge("⚠️ Synthetic cohort only—illustrative purposes.", color="gray")
  
             # Q&A UI
@@ -363,9 +384,21 @@ if st.session_state.get("form_submitted", False):
             if st.button("Ask Question", key="ask_question_btn"):
                 st.session_state["user_query_submitted"] = True
  
+ 
             if st.session_state["user_query_submitted"] and question.strip():
                 vals = st.session_state["form_values"]
                 context = generate_patient_context(vals)
+                template = """
+                You are a helpful medical assistant.
+                Use the patient's data to answer their questions clearly.
+                Search for answers in the internet if needed to answer the questions
+                Patient Data: {context}
+                Question: {question}
+                Answer:
+                """
+ 
+                prompt = PromptTemplate(input_variables=["context", "question"], template=template)
+ 
                 template = """
                 You are a helpful medical assistant.
                 Use the patient's data to answer their questions clearly.
@@ -384,17 +417,95 @@ if st.session_state.get("form_submitted", False):
                     temperature=0.7
                 )
  
+                chain = prompt | llm
+               
+ 
                 chain = LLMChain(llm = llm, prompt = prompt)
                
                 with st.spinner("Generating response…"):
+                    response = chain.invoke({"context": context, "question": question})
+                    st.markdown(response.content)
+ 
                     ans = chain.run({"context": context, "question": question})
                     st.write(ans)
  
         # — READ MORE TAB —
         with tab2:
-            st.header("Learn More About the Dashboard")
             with st.expander("Risk Model & Feature Set"):
                 st.markdown("""
+                    An **XGBoost** classifier was trained on the following groups of features to estimate your risk of developing atrial fibrillation (AFib):
+                    - **Demographics**: Age at time of ECG, biological sex  
+                    - **Disease History**: Acute myocarditis, pericarditis, aortic dissection  
+                    - **Cardiovascular Events & Procedures**: Heart failure admission, acute myocardial infarction (MI), unstable angina, stroke, transient ischemic attack (TIA), PCI, CABG, LVAD implantation, heart transplantation  
+                    - **Implanted Devices**: Permanent pacemaker, CRT device, implantable cardioverter-defibrillator (ICD)  
+                    - **ECG Measurements**: Heart rate (bpm), PR interval (ms), QRS duration (ms), QTc interval (ms)  
+                    - **ECG Conduction Abnormalities**: Paced rhythm, bigeminy, LBBB, RBBB, incomplete blocks, LAFB, LPFB, bifascicular/trifascicular block, intraventricular conduction delay  
+                    The model outputs a probability of new-onset AFib, categorized as **Low** 🟢, **Medium** 🟡, or **High** 🔴 risk.
+                    """
+                )
+            with st.expander("How to Read the Visualizations"):
+                st.markdown(
+                    """
+                    **PCA Projection**  
+                    - Reduces all numeric inputs into two principal components (PC1 & PC2).  
+                    - Background dots = synthetic patient cohort (AFib vs. no AFib).  
+                    - Large red dot = your individual feature profile.
+        
+                    **Outcome‑Stratified Histograms**  
+                    For each of your ECG values, we show where you fall relative to the simulated AFib and non‑AFib populations:  
+                    - Age (years)  
+                    - Heart Rate (bpm)  
+                    - PR Interval (ms)  
+                    - QRS Duration (ms)  
+                    - QTc Interval (ms)  
+                    """
+                )
+            with st.expander("ECG Feature Definitions"):
+                st.markdown(
+                    """
+                    - **Heart Rate (bpm)**: Beats per minute  
+                    - **PR Interval (ms)**: Time from atrial to ventricular depolarization  
+                    - **QRS Duration (ms)**: Time for ventricular depolarization  
+                    - **QTc Interval (ms)**: QT interval corrected for heart rate  
+                    """
+                )
+            with st.expander("Synthetic Data Disclaimer"):
+                st.markdown(
+                    """
+                    All cohort distributions and PCA backdrops are **synthetic** and do **not** reflect any real patient records.  
+                    They were generated solely to illustrate your profile's position within a plausible population, while preserving privacy.
+                    """
+                )
+            with st.expander("Chatbot Overview"):
+                st.markdown("""
+                This AI-powered chatbot is designed to **interpret structured clinical and ECG data** and generate **clear, concise medical summaries**. It provides a natural-language explanation of key health indicators, making it suitable for both **clinical support** and **non-clinical understanding**.
+ 
+                **What It Does**
+                           
+                When provided with inputs such as age, sex, heart rate, PR interval, QRS duration, QTc, and medical history, the chatbot returns a **human-readable summary** that includes:
+ 
+                - **Vital Signs Interpretation** explains whether values like heart rate, PR interval, QRS duration, and QTc are within normal ranges.
+ 
+                - **Abnormality Detection** highlights clinical concerns such as bradycardia, heart block, or QT prolongation, if present.
+ 
+                - **Clinical Recommendations** offers actionable insights such as the need for urgent evaluation, pacemaker consideration, or further diagnostic testing.
+ 
+                - **Contextual Clarification** includes assumptions made in interpreting coded values (e.g., sex = "0" interpreted as female).
+ 
+                **Use Cases**
+                1. **Clinical Decision Support** assists healthcare providers in quickly understanding ECG findings and identifying red flags in patient data.
+ 
+                2. **Medical Education & Training** acts as a learning tool for students and trainees by explaining ECG parameters in plain language.
+ 
+                3. **Remote Monitoring Summaries** converts raw telemetry data from wearable devices or remote patient monitors into digestible reports.
+ 
+                4. **Triage Assistance** helps non-specialist medical staff or first responders make informed decisions by flagging urgent conditions.
+ 
+                5. **Second Opinion for Practitioners** provides automated, unbiased review of ECG data to complement human judgment.
+ 
+                6. **Patient-Facing Summaries (with Caution)** can be used to generate simplified explanations of ECG results for patients, though should be reviewed by a clinician.
+                """)
+ 
                 - **Demographics**: Age, Sex  
                 - **History**: Myocarditis, Pericarditis, …  
                 - **ECG**: HR, PR, QRS, QTc  
