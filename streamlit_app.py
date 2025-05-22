@@ -380,9 +380,9 @@ if st.session_state.get("form_submitted", False):
                 prompt = PromptTemplate(input_variables=["context", "question"], template=template)
  
                 llm = ChatOpenAI(
-                    openai_api_base=openai_api_base,
-                    openai_api_key=deepseek_api_key,
-                    model=model_name,
+                    openai_api_base="https://api.deepseek.com/v1",
+                    openai_api_key="sk-63c627a483c54cd4979661bb55070e53",
+                    model="deepseek-chat",
                     temperature=0.7
                 )
  
