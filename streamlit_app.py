@@ -17,7 +17,7 @@ from langchain.prompts import PromptTemplate
 from langchain_core.runnables import RunnableSequence
 
 # --- Secrets & config ---
-deepseek_api_key = "sk-63c627a483c54cd4979661bb55070e53
+deepseek_api_key = "sk-63c627a483c54cd4979661bb55070e53"
 model_name       = "https://api.deepseek.com/v1"
 openai_api_base  = "deepseek-chat"
 
